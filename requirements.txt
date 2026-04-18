@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+streamlit
+transformers
+accelerate
+bitsandbytes
+torch
+chromadb
+sentence-transformers
+pypdf
+python-multipart
+pandas
+python-dotenv
+pytest
+
+httpx
