@@ -1,14 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
-
-import sys
-
-ROOT_DIR = Path(__file__).resolve().parents[1]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 import pandas as pd
 import streamlit as st
@@ -27,6 +19,10 @@ if "student_id" not in st.session_state:
     st.session_state.student_id = "student-1"
 if "topic" not in st.session_state:
     st.session_state.topic = "General"
+if "last_tool_output" not in st.session_state:
+    st.session_state.last_tool_output = ""
+
+RECENT_ATTEMPTS_COLUMNS = ["topic", "score", "attempted_at"]
 
 st.title("🎓 AI Study Buddy — Streamlit")
 
@@ -54,7 +50,7 @@ with chat_tab:
             answer = llm_service.generate(task="chat", user_input=message, context=context)
             st.session_state.chat_history.append({"user": message, "assistant": answer})
 
-    for pair in st.session_state.chat_history[::-1]:
+    for pair in reversed(st.session_state.chat_history):
         st.markdown(f"**You:** {pair['user']}")
         st.markdown(f"**Assistant:** {pair['assistant']}")
         st.divider()
@@ -77,7 +73,7 @@ with upload_tab:
             st.markdown(f"**Chunk {i}:** {chunk}")
 
 
-def feature_prompt(feature: str, topic: str) -> str:
+def build_feature_task_prompt(feature: str, topic: str) -> str:
     mapping = {
         "Summary": "Create a concise study summary",
         "Flashcards": "Generate 10 flashcards in Q/A format",
@@ -95,19 +91,22 @@ with tools_tab:
     if st.button("Generate", key="feature_generate"):
         with st.spinner("Generating..."):
             chunks = rag_service.retrieve(query=query, student_id=st.session_state.student_id, top_k=4)
-            output = llm_service.generate(task=feature_prompt(feature, query), user_input=query, context=chunks)
-        st.markdown(output)
+            output = llm_service.generate(task=build_feature_task_prompt(feature, query), user_input=query, context=chunks)
+        st.session_state.last_tool_output = output
 
-        if feature == "Quiz":
-            score = st.slider("Log your score (%)", min_value=0, max_value=100, value=70)
-            if st.button("Save Quiz Score"):
-                student_repo.record_quiz_attempt(
-                    student_id=st.session_state.student_id,
-                    topic=query,
-                    score=float(score),
-                    metadata=json.dumps({"source": "streamlit_quiz"}),
-                )
-                st.success("Quiz attempt saved")
+    if st.session_state.last_tool_output:
+        st.markdown(st.session_state.last_tool_output)
+
+    if feature == "Quiz":
+        score = st.slider("Log your score (%)", min_value=0, max_value=100, value=70)
+        if st.button("Save Quiz Score"):
+            student_repo.record_quiz_attempt(
+                student_id=st.session_state.student_id,
+                topic=query,
+                score=float(score),
+                metadata=json.dumps({"source": "streamlit_quiz"}),
+            )
+            st.success("Quiz attempt saved")
 
 with dashboard_tab:
     st.subheader("Performance Dashboard")
@@ -128,7 +127,7 @@ with dashboard_tab:
         st.info("No topic scores yet.")
 
     st.markdown("**Recent Attempts**")
-    st.dataframe(pd.DataFrame(recent) if recent else pd.DataFrame(columns=["topic", "score", "attempted_at"]))
+    st.dataframe(pd.DataFrame(recent) if recent else pd.DataFrame(columns=RECENT_ATTEMPTS_COLUMNS))
     st.markdown("**Weak Topics**")
     st.write(weak_topics if weak_topics else "No weak topics detected")
 

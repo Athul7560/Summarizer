@@ -6,6 +6,7 @@ from threading import Lock
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
+FALLBACK_SUMMARY_MAX_CHARS = 400
 
 
 class LLMService:
@@ -92,8 +93,8 @@ class LLMService:
     def _fallback_generate(self, prompt: str, summarize: bool = False) -> str:
         if summarize:
             cleaned = " ".join(prompt.split())
-            return cleaned[:400] + ("..." if len(cleaned) > 400 else "")
-        return "I could not load the configured model, so this is fallback mode. Prompt received: " + prompt[:300]
+            return cleaned[:FALLBACK_SUMMARY_MAX_CHARS] + ("..." if len(cleaned) > FALLBACK_SUMMARY_MAX_CHARS else "")
+        return "I could not load the configured model, so fallback mode is active. Please verify model/runtime setup."
 
     def generate(self, *, task: str, user_input: str, context: list[str] | None = None, max_new_tokens: int = 256) -> str:
         self._load()
@@ -111,7 +112,6 @@ class LLMService:
                 **encoded,
                 max_new_tokens=max_new_tokens,
                 do_sample=False,
-                temperature=0.0,
                 pad_token_id=self._tokenizer.eos_token_id,
             )
 

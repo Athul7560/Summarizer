@@ -1,1 +1,7 @@
-from streamlit_app.app import *  # noqa: F401,F403
+from __future__ import annotations
+
+from pathlib import Path
+import runpy
+
+if __name__ == "__main__":
+    runpy.run_path(str(Path(__file__).resolve().parent / "streamlit_app" / "app.py"), run_name="__main__")

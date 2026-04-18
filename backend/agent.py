@@ -9,12 +9,15 @@ from backend.rag_service import rag_service
 
 @dataclass
 class Suggestion:
+    student_id: str
     topic: str
     suggestion_type: str
     recommendation: str
 
 
 class StudyCoachAgent:
+    SUGGESTION_TYPES = ("summary", "quiz", "flashcards")
+
     def get_weak_topics(self, student_id: str, threshold: float = 60.0) -> list[str]:
         topic_scores = student_repo.get_topic_scores(student_id)
         return [row["topic"] for row in topic_scores if float(row["avg_score"]) < threshold]
@@ -35,16 +38,17 @@ class StudyCoachAgent:
         declined = student_repo.get_declined_suggestions(student_id)
 
         for topic in weak_topics:
-            for suggestion_type in ("summary", "quiz", "flashcards"):
+            for suggestion_type in self.SUGGESTION_TYPES:
                 if (topic, suggestion_type) in declined:
                     continue
                 message = (
                     f"You are weaker in '{topic}'. I recommend a {suggestion_type} intervention now. "
                     f"Would you like me to generate it?"
                 )
-                return Suggestion(topic=topic, suggestion_type=suggestion_type, recommendation=message)
+                return Suggestion(student_id=student_id, topic=topic, suggestion_type=suggestion_type, recommendation=message)
 
         return Suggestion(
+            student_id=student_id,
             topic="general",
             suggestion_type="review",
             recommendation="No critical weak topic detected. Keep practicing with mixed-topic quizzes.",
@@ -57,7 +61,7 @@ class StudyCoachAgent:
             return self.generate_quiz(suggestion.topic, difficulty="easy")
         if suggestion.suggestion_type == "flashcards":
             return self.create_flashcards(suggestion.topic)
-        related = rag_service.retrieve(query=suggestion.topic, student_id="default", top_k=3)
+        related = rag_service.retrieve(query=suggestion.topic, student_id=suggestion.student_id, top_k=3)
         return "General review:\n" + "\n\n".join(related)
 
 

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 class ChunkRecord:
     text: str
     metadata: dict[str, Any]
+    embedding: list[float]
 
 
 class RAGService:
@@ -84,6 +85,9 @@ class RAGService:
     def _embed(self, texts: list[str]) -> list[list[float]]:
         self._init_clients()
         if self._embedder is None:
+            # Deterministic fallback vectors for environments without embedding models.
+            # These hash-derived vectors keep behavior reproducible but are non-semantic.
+            # Use this mode for development/testing only; semantic retrieval needs real embeddings.
             vectors: list[list[float]] = []
             for text in texts:
                 digest = hashlib.sha256(text.encode("utf-8")).digest()
@@ -114,8 +118,8 @@ class RAGService:
                     metadatas=metadatas,
                 )
             else:
-                for chunk, metadata in zip(chunks, metadatas):
-                    self._fallback_records.append(ChunkRecord(text=chunk, metadata=metadata))
+                for chunk, metadata, embedding in zip(chunks, metadatas, embeddings):
+                    self._fallback_records.append(ChunkRecord(text=chunk, metadata=metadata, embedding=embedding))
 
             total_chunks += len(chunks)
             docs_processed += 1
@@ -150,7 +154,7 @@ class RAGService:
         for record in self._fallback_records:
             if record.metadata.get("student_id") != student_id:
                 continue
-            score = self._cosine(query_vec, self._embed([record.text])[0])
+            score = self._cosine(query_vec, record.embedding)
             scored.append((score, record.text))
 
         scored.sort(key=lambda item: item[0], reverse=True)

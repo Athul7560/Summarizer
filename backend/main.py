@@ -39,7 +39,7 @@ async def lifespan(_: FastAPI):
     logger.info("Shutting down backend")
 
 
-app = FastAPI(title="Summarizer Backend", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="AI Study Buddy Backend", version="1.0.0", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -74,7 +74,10 @@ def summarize(request: SummarizeRequest) -> SummarizeResponse:
         raise HTTPException(status_code=400, detail="Provide text or context_chunks")
 
     merged = text if text else "\n\n".join(context)
-    summary = llm_service.generate(task="summarize", user_input=merged, context=context, max_new_tokens=220)
+    # If raw text is provided we keep retrieved chunks as explicit context.
+    # If only chunks are provided, they are already merged as the primary input.
+    summary_context = context if text else []
+    summary = llm_service.generate(task="summarize", user_input=merged, context=summary_context, max_new_tokens=220)
     return SummarizeResponse(summary=summary, model=llm_service.model_name, fallback=llm_service.fallback_mode)
 
 

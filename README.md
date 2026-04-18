@@ -75,7 +75,7 @@ Open docs at `http://127.0.0.1:8000/docs`.
 ## Run frontend (Streamlit)
 
 ```bash
-streamlit run streamlit_app/app.py
+streamlit run app.py
 ```
 
 ## Streamlit UX tabs

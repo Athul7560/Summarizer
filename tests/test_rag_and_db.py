@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from backend.database import StudentRepository
 from backend.rag_service import RAGService
 
@@ -11,7 +13,7 @@ def test_chunk_text_overlap() -> None:
     assert all(len(chunk) <= 200 for chunk in chunks)
 
 
-def test_db_attempt_and_topic_aggregation(tmp_path) -> None:
+def test_db_attempt_and_topic_aggregation(tmp_path: Path) -> None:
     repo = StudentRepository(str(tmp_path / "test.db"))
     repo.record_quiz_attempt(student_id="s1", topic="math", score=50, metadata="{}")
     repo.record_quiz_attempt(student_id="s1", topic="math", score=90, metadata="{}")
